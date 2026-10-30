@@ -5,34 +5,24 @@ require_once 'db_connect.php';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = trim($_POST['username']);
+    $email = trim($_POST['email']);
     $password = trim($_POST['password']);
 
-    if (!empty($username) && !empty($password)) {
-        // Fetch user record from database
-        $stmt = $pdo->prepare("SELECT UserID, Username, PasswordHash, Role, EmployeeNo FROM USERS WHERE Username = ?");
-        $stmt->execute([$username]);
+    if (!empty($email) && !empty($password)) {
+        $stmt = $pdo->prepare("SELECT * FROM USERS WHERE Email = ?");
+        $stmt->execute([$email]);
         $user = $stmt->fetch();
 
-        // Verify password hash securely
         if ($user && password_verify($password, $user['PasswordHash'])) {
-            // Prevent session fixation attacks
-            session_regenerate_id(true);
+            $_SESSION['UserID'] = $user['UserID'];
+            $_SESSION['Email'] = $user['Email'];
+            $_SESSION['Role'] = $user['Role'];
+            $_SESSION['EmployeeNo'] = $user['EmployeeNo'];
 
-            $_SESSION['user_id'] = $user['UserID'];
-            $_SESSION['username'] = $user['Username'];
-            $_SESSION['role'] = $user['Role'];
-            $_SESSION['employee_no'] = $user['EmployeeNo'];
-
-            // RBAC Redirection based on user role
-            if ($user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
-                header("Location: admin_dashboard.php");
-            } else {
-                header("Location: employee_dashboard.php");
-            }
+            header("Location: dashboard.php");
             exit();
         } else {
-            $error = "Invalid username or password.";
+            $error = "Invalid email or password.";
         }
     } else {
         $error = "Please fill in all fields.";
@@ -46,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>Login - Leave Application System</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 320px; }
+        .login-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 350px; }
         .login-card h2 { margin-bottom: 20px; color: #333; text-align: center; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; color: #666; }
@@ -55,24 +45,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .btn:hover { background: #0056b3; }
         .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
         .register-link { text-align: center; margin-top: 15px; font-size: 14px; }
-        .register-link a { color: #28a745; text-decoration: none; font-weight: bold; }
-        .register-link a:hover { text-decoration: underline; }
+        .register-link a { color: #28a745; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <h2>System Login</h2>
-        <?php if (!empty($error)): ?>
-            <div class="error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
+        <?php if (!empty($error)): ?><div class="error"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
         <form action="login.php" method="POST">
             <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username" required>
+                <label>Email Address</label>
+                <input type="email" name="email" placeholder="e.g., carla.dizon@company.com" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" name="password" required>
+                <input type="password" name="password" placeholder="Enter password" required>
             </div>
             <button type="submit" class="btn">Login</button>
         </form>
