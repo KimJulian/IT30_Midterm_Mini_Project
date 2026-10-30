@@ -19,7 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['Role'] = $user['Role'];
             $_SESSION['EmployeeNo'] = $user['EmployeeNo'];
 
-            header("Location: dashboard.php");
+            // Role-based redirection
+            if ($user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
+                header("Location: admin_dashboard.php");
+            } else {
+                header("Location: employee_dashboard.php");
+            }
             exit();
         } else {
             $error = "Invalid email or password.";
@@ -28,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "Please fill in all fields.";
     }
 }
+?>
 ?>
 <!DOCTYPE html>
 <html lang="en">
