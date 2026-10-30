@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     // Insert new user into database
                     $stmt = $pdo->prepare("INSERT INTO USERS (Username, PasswordHash, Role, EmployeeNo) VALUES (?, ?, ?, ?)");
                     if ($stmt->execute([$username, $password_hash, $role, $employee_no])) {
-                        // Optionally update email in employee table if not already set
+                        // Update email in employee table
                         $stmt_email = $pdo->prepare("UPDATE EMPLOYEE SET Email = ? WHERE EmployeeNo = ?");
                         $stmt_email->execute([$email, $employee_no]);
 
@@ -89,15 +89,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <form action="registration.php" method="POST">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" name="username" required>
+                <input type="text" name="username" placeholder="e.g., Juan_DelaCruz" required>
             </div>
             <div class="form-group">
                 <label>Email Address</label>
-                <input type="email" name="email" required>
+                <input type="email" name="email" placeholder="e.g., juandelacruz@gmail.com" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" name="password" required>
+                <input type="password" name="password" placeholder="At least 8 characters" required>
             </div>
             <div class="form-group">
                 <label>Select Your Employee Profile</label>
