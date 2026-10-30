@@ -5,31 +5,50 @@ require_once 'db_connect.php';
 $message = '';
 $error = '';
 
+// Fetch employees so the user can select their name from a dropdown
+$stmt_emp = $pdo->query("SELECT EmployeeNo, EmployeeName FROM EMPLOYEE");
+$employees = $stmt_emp->fetchAll();
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username']);
+    $email = trim($_POST['email']);
     $password = trim($_POST['password']);
-    $employee_no = !empty($_POST['employee_no']) ? trim($_POST['employee_no']) : null;
-    
-    // Automatically set default role to 'Employee'
-    $role = 'Employee';
+    $employee_no = trim($_POST['employee_no']);
+    $role = 'Employee'; // Default role
 
-    if (!empty($username) && !empty($password) && !empty($employee_no)) {
-        // Check if username already exists
-        $stmt_check = $pdo->prepare("SELECT UserID FROM USERS WHERE Username = ?");
-        $stmt_check->execute([$username]);
-        
-        if ($stmt_check->rowCount() > 0) {
-            $error = "Username already taken. Please choose another.";
+    if (!empty($username) && !empty($email) && !empty($password) && !empty($employee_no)) {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = "Invalid email format.";
         } else {
-            // Securely hash the password
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-
-            // Insert new user into database with default 'Employee' role
-            $stmt = $pdo->prepare("INSERT INTO USERS (Username, PasswordHash, Role, EmployeeNo) VALUES (?, ?, ?, ?)");
-            if ($stmt->execute([$username, $password_hash, $role, $employee_no])) {
-                $message = "Registration successful! You can now <a href='login.php'>login here</a>.";
+            // Check if username already exists
+            $stmt_check = $pdo->prepare("SELECT UserID FROM USERS WHERE Username = ?");
+            $stmt_check->execute([$username]);
+            
+            if ($stmt_check->rowCount() > 0) {
+                $error = "Username already taken. Please choose another.";
             } else {
-                $error = "Registration failed. Please try again.";
+                // Check if this EmployeeNo is already linked to another user account
+                $stmt_link_check = $pdo->prepare("SELECT UserID FROM USERS WHERE EmployeeNo = ?");
+                $stmt_link_check->execute([$employee_no]);
+
+                if ($stmt_link_check->rowCount() > 0) {
+                    $error = "An account is already linked to this employee record.";
+                } else {
+                    // Securely hash the password
+                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+
+                    // Insert new user into database
+                    $stmt = $pdo->prepare("INSERT INTO USERS (Username, PasswordHash, Role, EmployeeNo) VALUES (?, ?, ?, ?)");
+                    if ($stmt->execute([$username, $password_hash, $role, $employee_no])) {
+                        // Optionally update email in employee table if not already set
+                        $stmt_email = $pdo->prepare("UPDATE EMPLOYEE SET Email = ? WHERE EmployeeNo = ?");
+                        $stmt_email->execute([$email, $employee_no]);
+
+                        $message = "Registration successful! You can now <a href='login.php'>login here</a>.";
+                    } else {
+                        $error = "Registration failed. Please try again.";
+                    }
+                }
             }
         }
     } else {
@@ -48,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .register-card h2 { margin-bottom: 20px; color: #333; text-align: center; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; color: #666; }
-        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .btn { width: 100%; padding: 10px; background: #28a745; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn:hover { background: #218838; }
         .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
@@ -73,12 +92,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <input type="text" name="username" required>
             </div>
             <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" name="email" required>
+            </div>
+            <div class="form-group">
                 <label>Password</label>
                 <input type="password" name="password" required>
             </div>
             <div class="form-group">
-                <label>Employee Number (Linked ID)</label>
-                <input type="number" name="employee_no" placeholder="e.g., 1" required>
+                <label>Select Your Employee Profile</label>
+                <select name="employee_no" required>
+                    <option value="">-- Choose Employee --</option>
+                    <?php foreach ($employees as $emp): ?>
+                        <option value="<?php echo $emp['EmployeeNo']; ?>">
+                            <?php echo htmlspecialchars($emp['EmployeeName'] . " (ID: " . $emp['EmployeeNo'] . ")"); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <button type="submit" class="btn">Register Account</button>
         </form>
