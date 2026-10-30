@@ -1,3 +1,44 @@
+<?php
+session_start();
+require_once 'db_connect.php';
+
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
+
+    if (!empty($username) && !empty($password)) {
+        // Fetch user record from database
+        $stmt = $pdo->prepare("SELECT UserID, Username, PasswordHash, Role, EmployeeNo FROM USERS WHERE Username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+
+        // Verify password hash securely
+        if ($user && password_verify($password, $user['PasswordHash'])) {
+            // Prevent session fixation attacks
+            session_regenerate_id(true);
+
+            $_SESSION['user_id'] = $user['UserID'];
+            $_SESSION['username'] = $user['Username'];
+            $_SESSION['role'] = $user['Role'];
+            $_SESSION['employee_no'] = $user['EmployeeNo'];
+
+            // RBAC Redirection based on user role
+            if ($user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
+                header("Location: admin_dashboard.php");
+            } else {
+                header("Location: employee_dashboard.php");
+            }
+            exit();
+        } else {
+            $error = "Invalid username or password.";
+        }
+    } else {
+        $error = "Please fill in all fields.";
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
