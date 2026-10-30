@@ -53,11 +53,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .btn { width: 100%; padding: 10px; background: #007bff; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn:hover { background: #0056b3; }
+        .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
+        .register-link { text-align: center; margin-top: 15px; font-size: 14px; }
+        .register-link a { color: #28a745; text-decoration: none; font-weight: bold; }
+        .register-link a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <h2>System Login</h2>
+        <?php if (!empty($error)): ?>
+            <div class="error"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
         <form action="login.php" method="POST">
             <div class="form-group">
                 <label>Username</label>
@@ -69,6 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             <button type="submit" class="btn">Login</button>
         </form>
+        <div class="register-link">
+            Don't have an account? <a href="registration.php">Register here</a>
+        </div>
     </div>
 </body>
 </html>
