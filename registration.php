@@ -9,9 +9,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
     $employee_no = !empty($_POST['employee_no']) ? trim($_POST['employee_no']) : null;
-    $role = trim($_POST['role']);
+    
+    // Automatically set default role to 'Employee'
+    $role = 'Employee';
 
-    if (!empty($username) && !empty($password) && !empty($role)) {
+    if (!empty($username) && !empty($password) && !empty($employee_no)) {
         // Check if username already exists
         $stmt_check = $pdo->prepare("SELECT UserID FROM USERS WHERE Username = ?");
         $stmt_check->execute([$username]);
@@ -22,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Securely hash the password
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-            // Insert new user into database
+            // Insert new user into database with default 'Employee' role
             $stmt = $pdo->prepare("INSERT INTO USERS (Username, PasswordHash, Role, EmployeeNo) VALUES (?, ?, ?, ?)");
             if ($stmt->execute([$username, $password_hash, $role, $employee_no])) {
                 $message = "Registration successful! You can now <a href='login.php'>login here</a>.";
@@ -46,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .register-card h2 { margin-bottom: 20px; color: #333; text-align: center; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; color: #666; }
-        .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .btn { width: 100%; padding: 10px; background: #28a745; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn:hover { background: #218838; }
         .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
@@ -76,15 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
             <div class="form-group">
                 <label>Employee Number (Linked ID)</label>
-                <input type="number" name="employee_no" placeholder="Leave blank if Admin">
-            </div>
-            <div class="form-group">
-                <label>System Role</label>
-                <select name="role">
-                    <option value="Employee">Employee</option>
-                    <option value="Supervisor">Supervisor</option>
-                    <option value="HR_Admin">HR Admin</option>
-                </select>
+                <input type="number" name="employee_no" placeholder="e.g., 1" required>
             </div>
             <button type="submit" class="btn">Register Account</button>
         </form>
