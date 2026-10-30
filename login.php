@@ -19,7 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['Role'] = $user['Role'];
             $_SESSION['EmployeeNo'] = $user['EmployeeNo'];
 
-            // Role-based redirection
             if ($user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
                 header("Location: admin_dashboard.php");
             } else {
@@ -33,7 +32,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "Please fill in all fields.";
     }
 }
-?>
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,16 +50,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
         .register-link { text-align: center; margin-top: 15px; font-size: 14px; }
         .register-link a { color: #28a745; text-decoration: none; }
+        .register-link a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <h2>System Login</h2>
-        <?php if (!empty($error)): ?><div class="error"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
+        <?php if (!empty($error)): ?>
+            <div class="error"><?php echo htmlspecialchars($error); ?></div>
+        <?php endif; ?>
         <form action="login.php" method="POST">
             <div class="form-group">
                 <label>Email Address</label>
-                <input type="email" name="email" placeholder="e.g., carla.dizon@company.com" required>
+                <input type="email" name="email" placeholder="e.g., admin@gmail.com" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
