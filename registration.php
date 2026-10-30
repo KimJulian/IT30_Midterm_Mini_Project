@@ -11,12 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $last_name = trim($_POST['last_name']);
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
+    $confirm_password = trim($_POST['confirm_password']);
     $department = trim($_POST['department']);
     $role = 'Employee'; // Default role
 
-    if (!empty($first_name) && !empty($last_name) && !empty($email) && !empty($password) && !empty($department)) {
+    if (!empty($first_name) && !empty($last_name) && !empty($email) && !empty($password) && !empty($confirm_password) && !empty($department)) {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $error = "Invalid email format.";
+        } elseif ($password !== $confirm_password) {
+            $error = "Passwords do not match. Please try again.";
         } else {
             // Check if email already exists in USERS table
             $stmt_check = $pdo->prepare("SELECT UserID FROM USERS WHERE Email = ?");
@@ -109,6 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="form-group">
                 <label>Password</label>
                 <input type="password" name="password" placeholder="Enter secure password" required>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" name="confirm_password" placeholder="Re-enter password" required>
             </div>
             <div class="form-group">
                 <label>Department</label>
