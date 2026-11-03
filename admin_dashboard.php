@@ -2,8 +2,8 @@
 session_start();
 require_once 'db_connect.php';
 
-// Security check: Must be logged in and have HR_Admin or Supervisor role
-if (!isset($_SESSION['UserID']) || !in_array($_SESSION['Role'], ['HR_Admin', 'Supervisor'])) {
+// Security check: Must be logged in and have Admin, HR_Admin, or Supervisor role
+if (!isset($_SESSION['UserID']) || !in_array($_SESSION['Role'], ['Admin', 'HR_Admin', 'Supervisor'])) {
     header("Location: login.php");
     exit();
 }
@@ -16,31 +16,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_decision'])) {
     $decision = $_POST['decision'];
 
     if (!empty($request_no) && in_array($decision, ['Approved', 'Rejected'])) {
-        // 1. Fetch request details to check current status, employee, and days
-        $stmt_check = $pdo->prepare("SELECT EmployeeNo, Days, Decision FROM LEAVE_REQUEST WHERE RequestNo = ?");
+        // 1. Fetch request details using lowercase table and Status column
+        $stmt_check = $pdo->prepare("SELECT EmployeeNo, Days, Status FROM leave_request WHERE RequestNo = ?");
         $stmt_check->execute([$request_no]);
         $req_data = $stmt_check->fetch();
 
         if ($req_data) {
-            $current_status = $req_data['Decision'];
+            $current_status = $req_data['Status'];
             $emp_no = $req_data['EmployeeNo'];
             $days = $req_data['Days'];
 
             // Begin transaction to ensure data integrity
             $pdo->beginTransaction();
 
-            // 2. Update the decision status
-            $stmt_decide = $pdo->prepare("UPDATE LEAVE_REQUEST SET Decision = ? WHERE RequestNo = ?");
+            // 2. Update the status column
+            $stmt_decide = $pdo->prepare("UPDATE leave_request SET Status = ? WHERE RequestNo = ?");
             $stmt_decide->execute([$decision, $request_no]);
 
-            // 3. Enforce BR4: If newly Approved (and wasn't already approved), deduct leave credits
+            // 3. Enforce BR4: If newly Approved, deduct leave credits
             if ($decision === 'Approved' && $current_status !== 'Approved') {
-                $stmt_deduct = $pdo->prepare("UPDATE EMPLOYEE SET LeaveCredits = LeaveCredits - ? WHERE EmployeeNo = ?");
+                $stmt_deduct = $pdo->prepare("UPDATE employee SET LeaveCredits = LeaveCredits - ? WHERE EmployeeNo = ?");
                 $stmt_deduct->execute([$days, $emp_no]);
             }
             
-            // (Optional reverse rule): If changing from Approved back to Rejected/Pending, you could restore credits here if needed
-
             $pdo->commit();
             $action_message = "Request {$request_no} has been " . strtolower($decision) . ".";
         }
@@ -53,14 +51,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_dept'])) {
     $department = trim($_POST['department']);
 
     if (!empty($emp_no) && !empty($department)) {
-        $stmt_update = $pdo->prepare("UPDATE EMPLOYEE SET Department = ? WHERE EmployeeNo = ?");
+        $stmt_update = $pdo->prepare("UPDATE employee SET Department = ? WHERE EmployeeNo = ?");
         if ($stmt_update->execute([$department, $emp_no])) {
             $action_message = "Department successfully assigned to {$emp_no}!";
         }
     }
 }
 
-// Fetch all leave requests with full details matching the spreadsheet design
+// Fetch all leave requests using lowercase table names and correct column aliases
 $stmt = $pdo->prepare("
     SELECT 
         r.RequestNo,
@@ -69,23 +67,23 @@ $stmt = $pdo->prepare("
         e.Department,
         e.SupervisorID,
         CONCAT(sup.FirstName, ' ', sup.LastName) AS SupervisorName,
-        t.LeaveTypeName AS LeaveType,
+        t.TypeName AS LeaveType,
         r.StartDate,
         r.EndDate,
         r.Days,
         e.LeaveCredits AS CreditsAvailable,
-        r.Decision
-    FROM LEAVE_REQUEST r
-    JOIN EMPLOYEE e ON r.EmployeeNo = e.EmployeeNo
-    JOIN LEAVE_TYPE t ON r.LeaveTypeID = t.LeaveTypeID
-    LEFT JOIN EMPLOYEE sup ON e.SupervisorID = sup.EmployeeNo
+        r.Status
+    FROM leave_request r
+    JOIN employee e ON r.EmployeeNo = e.EmployeeNo
+    JOIN leave_type t ON r.LeaveTypeID = t.LeaveTypeID
+    LEFT JOIN employee sup ON e.SupervisorID = sup.EmployeeNo
     ORDER BY r.RequestNo ASC
 ");
 $stmt->execute();
 $all_requests = $stmt->fetchAll();
 
 // Fetch employees who have no department assigned yet
-$stmt_unassigned = $pdo->query("SELECT EmployeeNo, CONCAT(FirstName, ' ', LastName) AS FullName, Email FROM EMPLOYEE WHERE Department IS NULL OR Department = ''");
+$stmt_unassigned = $pdo->query("SELECT EmployeeNo, CONCAT(FirstName, ' ', LastName) AS FullName, Email FROM employee WHERE Department IS NULL OR Department = ''");
 $unassigned_employees = $stmt_unassigned->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -175,7 +173,7 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
                 <th>End Date</th>
                 <th>Days</th>
                 <th>Credits Available</th>
-                <th>Decision</th>
+                <th>Status</th>
                 <th>Actions</th>
             </tr>
             <?php if (count($all_requests) > 0): ?>
@@ -194,7 +192,7 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
                     <td><?php echo htmlspecialchars($req['CreditsAvailable'] ?? '0'); ?></td>
                     <td>
                         <?php 
-                            $status = $req['Decision'];
+                            $status = $req['Status'];
                             $badge_class = 'badge-pending';
                             if ($status === 'Approved') $badge_class = 'badge-approved';
                             if ($status === 'Rejected') $badge_class = 'badge-rejected';

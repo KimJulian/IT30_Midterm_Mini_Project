@@ -28,20 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
             $days = $interval->days + 1;
 
             // Check if employee has enough credits available
-            $stmt_cred = $pdo->prepare("SELECT LeaveCredits FROM EMPLOYEE WHERE EmployeeNo = ?");
+            $stmt_cred = $pdo->prepare("SELECT LeaveCredits FROM employee WHERE EmployeeNo = ?");
             $stmt_cred->execute([$employee_no]);
             $emp_data = $stmt_cred->fetch();
             $available_credits = $emp_data['LeaveCredits'] ?? 0;
 
             if ($available_credits >= $days) {
-                // Generate unique Request No (e.g., LV-107, etc.)
-                $stmt_count = $pdo->query("SELECT COUNT(*) FROM LEAVE_REQUEST");
-                $count = $stmt_count->fetchColumn() + 101;
-                $request_no = 'LV-' . $count;
-
-                $stmt_insert = $pdo->prepare("INSERT INTO LEAVE_REQUEST (RequestNo, EmployeeNo, LeaveTypeID, StartDate, EndDate, Days, Decision) VALUES (?, ?, ?, ?, ?, ?, 'Pending')");
-                if ($stmt_insert->execute([$request_no, $employee_no, $leave_type_id, $start_date, $end_date, $days])) {
-                    $action_message = "Leave request {$request_no} submitted successfully!";
+                // Insert request (RequestNo is auto-increment integer in leave_request table)
+                $stmt_insert = $pdo->prepare("INSERT INTO leave_request (EmployeeNo, LeaveTypeID, StartDate, EndDate, Days, Status) VALUES (?, ?, ?, ?, ?, 'Pending')");
+                if ($stmt_insert->execute([$employee_no, $leave_type_id, $start_date, $end_date, $days])) {
+                    $action_message = "Leave request submitted successfully!";
                 }
             } else {
                 $error_message = "Insufficient leave credits. You requested {$days} days, but only have {$available_credits} credits available.";
@@ -55,19 +51,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
 }
 
 // Fetch employee's details and credit balance
-$stmt_emp = $pdo->prepare("SELECT * FROM EMPLOYEE WHERE EmployeeNo = ?");
+$stmt_emp = $pdo->prepare("SELECT * FROM employee WHERE EmployeeNo = ?");
 $stmt_emp->execute([$employee_no]);
 $employee = $stmt_emp->fetch();
 
 // Fetch leave types for dropdown selection
-$stmt_types = $pdo->query("SELECT * FROM LEAVE_TYPE");
+$stmt_types = $pdo->query("SELECT * FROM leave_type");
 $leave_types = $stmt_types->fetchAll();
 
 // Fetch leave requests submitted by this employee
 $stmt_reqs = $pdo->prepare("
-    SELECT r.RequestNo, t.LeaveTypeName AS LeaveType, r.StartDate, r.EndDate, r.Days, r.Decision 
-    FROM LEAVE_REQUEST r
-    JOIN LEAVE_TYPE t ON r.LeaveTypeID = t.LeaveTypeID
+    SELECT r.RequestNo, t.TypeName AS LeaveTypeName, r.StartDate, r.EndDate, r.Days, r.Status 
+    FROM leave_request r
+    JOIN leave_type t ON r.LeaveTypeID = t.LeaveTypeID
     WHERE r.EmployeeNo = ?
     ORDER BY r.RequestNo DESC
 ");
@@ -135,7 +131,7 @@ $my_requests = $stmt_reqs->fetchAll();
                     <select name="leave_type_id" required>
                         <option value="">-- Select Leave Type --</option>
                         <?php foreach ($leave_types as $type): ?>
-                            <option value="<?php echo $type['LeaveTypeID']; ?>"><?php echo htmlspecialchars($type['LeaveTypeName']); ?></option>
+                            <option value="<?php echo $type['LeaveTypeID']; ?>"><?php echo htmlspecialchars($type['TypeName']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -149,7 +145,7 @@ $my_requests = $stmt_reqs->fetchAll();
                         <input type="date" name="end_date" required>
                     </div>
                 </div>
-                <button type="submit" name="submit_leave" class="btn-submit">Submit Request</Link>
+                <button type="submit" name="submit_leave" class="btn-submit">Submit Request</button>
             </form>
         </div>
     </div>
@@ -164,19 +160,19 @@ $my_requests = $stmt_reqs->fetchAll();
                 <th>Start Date</th>
                 <th>End Date</th>
                 <th>Days</th>
-                <th>Status (Decision)</th>
+                <th>Status</th>
             </tr>
             <?php if (count($my_requests) > 0): ?>
                 <?php foreach ($my_requests as $req): ?>
                 <tr>
                     <td><strong><?php echo htmlspecialchars($req['RequestNo']); ?></strong></td>
-                    <td><?php echo htmlspecialchars($req['LeaveType']); ?></td>
+                    <td><?php echo htmlspecialchars($req['LeaveTypeName']); ?></td>
                     <td><?php echo htmlspecialchars($req['StartDate']); ?></td>
                     <td><?php echo htmlspecialchars($req['EndDate']); ?></td>
                     <td><?php echo htmlspecialchars($req['Days']); ?></td>
                     <td>
                         <?php 
-                            $status = $req['Decision'];
+                            $status = $req['Status'];
                             $badge_class = 'badge-pending';
                             if ($status === 'Approved') $badge_class = 'badge-approved';
                             if ($status === 'Rejected') $badge_class = 'badge-rejected';

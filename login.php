@@ -9,7 +9,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = trim($_POST['password']);
 
     if (!empty($email) && !empty($password)) {
-        $stmt = $pdo->prepare("SELECT * FROM USERS WHERE Email = ?");
+        // Updated table name to lowercase 'users'
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE Email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
@@ -19,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['Role'] = $user['Role'];
             $_SESSION['EmployeeNo'] = $user['EmployeeNo'];
 
-            if ($user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
+            // Added 'Admin' to match your database seed role
+            if ($user['Role'] === 'Admin' || $user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
                 header("Location: admin_dashboard.php");
             } else {
                 header("Location: employee_dashboard.php");
@@ -69,7 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         overflow: hidden;
         animation: fadeUp 0.45s ease;
     }
-    /* Gradient accent bar across the top */
     .login-card::before {
         content: '';
         position: absolute;
@@ -183,12 +184,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         text-decoration: underline;
         color: #1d7a35;
     }
-
-    /* ============ RESPONSIVE ============ */
-    @media (max-width: 420px) {
-        body { padding: 14px; }
-        .login-card { padding: 30px 22px; border-radius: 14px; }
-    }
 </style>
 </head>
 <body>
@@ -200,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <form action="login.php" method="POST">
             <div class="form-group">
                 <label>Email Address</label>
-                <input type="email" name="email" placeholder="e.g., admin@gmail.com" required>
+                <input type="email" name="email" placeholder="e.g., admin@system.com" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
