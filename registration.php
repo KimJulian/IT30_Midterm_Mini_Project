@@ -2,40 +2,46 @@
 session_start();
 require_once 'db_connect.php';
 
+// Initialize variables as empty so errors never show on page load
 $error = '';
 $success = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $first_name = trim($_POST['first_name']);
-    $last_name = trim($_POST['last_name']);
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
-    $department = trim($_POST['department']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $first_name = trim($_POST['first_name'] ?? '');
+    $last_name = trim($_POST['last_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
+    $department = trim($_POST['department'] ?? '');
 
-    if (!empty($first_name) && !empty($last_name) && !empty($email) && !empty($password)) {
-        // Check if email already exists
+    // 1. Check for empty fields
+    if (empty($first_name) || empty($last_name) || empty($email) || empty($password) || empty($confirm_password) || empty($department)) {
+        $error = "Please fill in all required fields.";
+    } 
+    // 2. Trigger ONLY when registering and passwords do not match
+    elseif ($password !== $confirm_password) {
+        $error = "Passwords do not match. Please re-enter.";
+    } 
+    // 3. Process registration if all checks pass
+    else {
         $stmt_check = $pdo->prepare("SELECT * FROM USERS WHERE Email = ?");
         $stmt_check->execute([$email]);
         
         if ($stmt_check->rowCount() > 0) {
             $error = "Email address is already registered.";
         } else {
-            // Generate unique EmployeeNo (e.g., E-04, E-05...)
             $stmt_count = $pdo->query("SELECT COUNT(*) FROM EMPLOYEE");
             $emp_count = $stmt_count->fetchColumn() + 1;
             $employee_no = 'E-' . str_pad($emp_count, 2, '0', STR_PAD_LEFT);
 
-            // Hash password securely
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
             try {
                 $pdo->beginTransaction();
 
-                // 1. Insert into EMPLOYEE table
                 $stmt_emp = $pdo->prepare("INSERT INTO EMPLOYEE (EmployeeNo, FirstName, LastName, Department, LeaveCredits, Email) VALUES (?, ?, ?, ?, 15, ?)");
                 $stmt_emp->execute([$employee_no, $first_name, $last_name, $department, $email]);
 
-                // 2. Insert into USERS table (Default role: Employee)
                 $stmt_user = $pdo->prepare("INSERT INTO USERS (Email, PasswordHash, Role, EmployeeNo) VALUES (?, ?, 'Employee', ?)");
                 $stmt_user->execute([$email, $password_hash, $employee_no]);
 
@@ -46,8 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $error = "Registration failed: " . $e->getMessage();
             }
         }
-    } else {
-        $error = "Please fill in all required fields.";
     }
 }
 ?>
@@ -65,8 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .btn { width: 100%; padding: 10px; background: #28a745; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn:hover { background: #218838; }
-        .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
-        .success { color: green; font-size: 14px; margin-bottom: 15px; text-align: center; }
+        .error-msg { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; background: #f8d7da; padding: 8px; border-radius: 4px; }
+        .success-msg { color: green; font-size: 14px; margin-bottom: 15px; text-align: center; background: #d4edda; padding: 8px; border-radius: 4px; }
         .login-link { text-align: center; margin-top: 15px; font-size: 14px; }
         .login-link a { color: #007bff; text-decoration: none; }
         .login-link a:hover { text-decoration: underline; }
@@ -75,12 +79,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
     <div class="register-card">
         <h2>Employee Registration</h2>
+        
         <?php if (!empty($error)): ?>
-            <div class="error"><?php echo htmlspecialchars($error); ?></div>
+            <div class="error-msg"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
+        
         <?php if (!empty($success)): ?>
-            <div class="success"><?php echo $success; ?></div>
+            <div class="success-msg"><?php echo $success; ?></div>
         <?php endif; ?>
+
         <form action="registration.php" method="POST">
             <div class="form-group">
                 <label>First Name</label>
@@ -95,9 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <select name="department" required>
                     <option value="">-- Select Department --</option>
                     <option value="Sales">Sales</option>
-                    <option value="IT">IT</option>
                     <option value="Operations">Operations</option>
-                    <option value="HR">HR</option>
                 </select>
             </div>
             <div class="form-group">
@@ -107,6 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="form-group">
                 <label>Password</label>
                 <input type="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" name="confirm_password" required>
             </div>
             <button type="submit" class="btn">Register</button>
         </form>
