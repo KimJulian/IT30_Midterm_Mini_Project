@@ -39,19 +39,157 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <title>Login - Leave Application System</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 350px; }
-        .login-card h2 { margin-bottom: 20px; color: #333; text-align: center; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: #666; }
-        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { width: 100%; padding: 10px; background: #007bff; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .btn:hover { background: #0056b3; }
-        .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
-        .register-link { text-align: center; margin-top: 15px; font-size: 14px; }
-        .register-link a { color: #28a745; text-decoration: none; }
-        .register-link a:hover { text-decoration: underline; }
-    </style>
+    /* ============ BASE ============ */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
+        background: linear-gradient(135deg, #eef2f7 0%, #dfe6ef 50%, #e6f1ea 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        padding: 20px;
+        color: #1f2937;
+    }
+
+    /* ============ LOGIN CARD ============ */
+    .login-card {
+        background: #ffffff;
+        padding: 38px 32px;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+        width: 380px;
+        max-width: 100%;
+        border: 1px solid #e5eaf1;
+        position: relative;
+        overflow: hidden;
+        animation: fadeUp 0.45s ease;
+    }
+    /* Gradient accent bar across the top */
+    .login-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #007bff, #28a745);
+    }
+
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .login-card h2 {
+        margin-bottom: 26px;
+        color: #111827;
+        text-align: center;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.4px;
+    }
+
+    /* ============ FORM ============ */
+    .form-group { margin-bottom: 18px; }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        color: #4b5563;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 11px 14px;
+        box-sizing: border-box;
+        border: 1.5px solid #d7dce3;
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 14px;
+        color: #1f2937;
+        background: #f8fafc;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .form-group input::placeholder { color: #9ca3af; }
+    .form-group input:hover { border-color: #b6bfc9; }
+    .form-group input:focus {
+        border-color: #007bff;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12);
+    }
+
+    /* ============ BUTTON ============ */
+    .btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #339dff, #007bff);
+        border: none;
+        color: white;
+        border-radius: 10px;
+        font-family: inherit;
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+        transition: transform 0.15s, box-shadow 0.15s;
+        margin-top: 4px;
+    }
+    .btn:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(0, 86, 179, 0.35);
+    }
+    .btn:active { transform: translateY(0); }
+
+    /* ============ ERROR ============ */
+    .error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-left: 4px solid #dc3545;
+        color: #b91c1c;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 11px 14px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        text-align: center;
+    }
+
+    /* ============ REGISTER LINK ============ */
+    .register-link {
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #f0f4f8;
+        font-size: 13.5px;
+        color: #6b7280;
+    }
+    .register-link a {
+        color: #28a745;
+        text-decoration: none;
+        font-weight: 700;
+        transition: color 0.15s;
+    }
+    .register-link a:hover {
+        text-decoration: underline;
+        color: #1d7a35;
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 420px) {
+        body { padding: 14px; }
+        .login-card { padding: 30px 22px; border-radius: 14px; }
+    }
+</style>
 </head>
 <body>
     <div class="login-card">

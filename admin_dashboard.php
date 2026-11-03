@@ -3,12 +3,7 @@ session_start();
 require_once 'db_connect.php';
 
 // Security check: Must be logged in and have HR_Admin or Supervisor role
-if (!isset($_SESSION['UserID']) || !in_array($_SESSION['Role'], ['HR_Admin', 'Supervisor'])) {
-    header("Location: login.php");
-    exit();
-}
-
-// Handle Department Assignment form submission
+if (!isset($_SESSION['UserID']) || 
 $assign_message = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_dept'])) {
     $emp_no = $_POST['employee_no'];

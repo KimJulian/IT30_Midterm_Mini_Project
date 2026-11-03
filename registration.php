@@ -12,10 +12,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
     $confirm_password = trim($_POST['confirm_password']);
-    $department = trim($_POST['department']);
     $role = 'Employee'; // Default role
 
-    if (!empty($first_name) && !empty($last_name) && !empty($email) && !empty($password) && !empty($confirm_password) && !empty($department)) {
+    if (!empty($first_name) && !empty($last_name) && !empty($email) && !empty($password) && !empty($confirm_password)) {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $error = "Invalid email format.";
         } elseif ($password !== $confirm_password) {
@@ -39,13 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $employee_no = 'EMP-00001';
                 }
 
-                // Default supervisor for auto-registered staff
-                $supervisor_id = 'SUP-00001'; 
-
-                // 2. Insert into EMPLOYEE table
-                $stmt_emp = $pdo->prepare("INSERT INTO EMPLOYEE (EmployeeNo, FirstName, MiddleName, LastName, Email, Department, SupervisorID) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                // 2. Insert into EMPLOYEE table (Department left unassigned/NULL for HR to configure)
+                $stmt_emp = $pdo->prepare("INSERT INTO EMPLOYEE (EmployeeNo, FirstName, MiddleName, LastName, Email, Department, SupervisorID) VALUES (?, ?, ?, ?, ?, NULL, NULL)");
                 
-                if ($stmt_emp->execute([$employee_no, $first_name, $middle_name, $last_name, $email, $department, $supervisor_id])) {
+                if ($stmt_emp->execute([$employee_no, $first_name, $middle_name, $last_name, $email])) {
                     // 3. Insert into USERS table
                     $password_hash = password_hash($password, PASSWORD_DEFAULT);
                     $stmt_user = $pdo->prepare("INSERT INTO USERS (Email, PasswordHash, Role, EmployeeNo) VALUES (?, ?, ?, ?)");
@@ -76,9 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .register-card h2 { margin-bottom: 20px; color: #333; text-align: center; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; color: #666; }
-        .form-group input, .form-group select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; font-size: 13px; color: #555; }
-        .checkbox-group input { width: auto; }
+        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         .btn { width: 100%; padding: 10px; background: #28a745; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn:hover { background: #218838; }
         .error { color: red; font-size: 14px; margin-bottom: 15px; text-align: center; }
@@ -116,20 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="form-group">
                 <label>Confirm Password</label>
                 <input type="password" name="confirm_password" placeholder="Re-enter password" required>
-            </div>
-            <div class="form-group">
-                <label>Department</label>
-                <select name="department" required>
-                    <option value="">-- Select Department --</option>
-                    <option value="Sales">Sales</option>
-                    <option value="HR">HR</option>
-                    <option value="IT">IT</option>
-                    <option value="Operations">Operations</option>
-                </select>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="manual_check" name="manual_check">
-                <label for="manual_check" style="margin-bottom:0;">If department/supervisor does not exist, check here for manual HR assignment</label>
             </div>
             <button type="submit" class="btn">Register Account</button>
         </form>
