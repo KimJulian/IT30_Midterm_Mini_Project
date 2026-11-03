@@ -34,13 +34,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $emp_count = $stmt_count->fetchColumn() + 1;
             $employee_no = 'E-' . str_pad($emp_count, 2, '0', STR_PAD_LEFT);
 
+            // Automatically assign a default SupervisorID based on the selected department
+            $supervisor_id = 1; // Default fallback supervisor ID
+            switch ($department) {
+                case 'Sales':
+                    $supervisor_id = 2; // e.g., Head of Sales
+                    break;
+                case 'Operations':
+                    $supervisor_id = 3; // e.g., Head of Operations
+                    break;
+            }
+
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
             try {
                 $pdo->beginTransaction();
 
-                $stmt_emp = $pdo->prepare("INSERT INTO EMPLOYEE (EmployeeNo, FirstName, LastName, Department, LeaveCredits, Email) VALUES (?, ?, ?, ?, 15, ?)");
-                $stmt_emp->execute([$employee_no, $first_name, $last_name, $department, $email]);
+                $stmt_emp = $pdo->prepare("INSERT INTO EMPLOYEE (EmployeeNo, FirstName, LastName, Department, SupervisorID, LeaveCredits, Email) VALUES (?, ?, ?, ?, ?, 15, ?)");
+                $stmt_emp->execute([$employee_no, $first_name, $last_name, $department, $supervisor_id, $email]);
 
                 $stmt_user = $pdo->prepare("INSERT INTO USERS (Email, PasswordHash, Role, EmployeeNo) VALUES (?, ?, 'Employee', ?)");
                 $stmt_user->execute([$email, $password_hash, $employee_no]);
