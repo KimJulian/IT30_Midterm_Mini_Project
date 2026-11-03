@@ -16,8 +16,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_decision'])) {
     $decision = $_POST['decision'];
 
     if (!empty($request_no) && in_array($decision, ['Approved', 'Rejected'])) {
-        $stmt_decide = $pdo->prepare("UPDATE LEAVE_REQUEST SET Decision = ? WHERE RequestNo = ?");
-        if ($stmt_decide->execute([$decision, $request_no])) {
+        // 1. Fetch request details to check current status, employee, and days
+        $stmt_check = $pdo->prepare("SELECT EmployeeNo, Days, Decision FROM LEAVE_REQUEST WHERE RequestNo = ?");
+        $stmt_check->execute([$request_no]);
+        $req_data = $stmt_check->fetch();
+
+        if ($req_data) {
+            $current_status = $req_data['Decision'];
+            $emp_no = $req_data['EmployeeNo'];
+            $days = $req_data['Days'];
+
+            // Begin transaction to ensure data integrity
+            $pdo->beginTransaction();
+
+            // 2. Update the decision status
+            $stmt_decide = $pdo->prepare("UPDATE LEAVE_REQUEST SET Decision = ? WHERE RequestNo = ?");
+            $stmt_decide->execute([$decision, $request_no]);
+
+            // 3. Enforce BR4: If newly Approved (and wasn't already approved), deduct leave credits
+            if ($decision === 'Approved' && $current_status !== 'Approved') {
+                $stmt_deduct = $pdo->prepare("UPDATE EMPLOYEE SET LeaveCredits = LeaveCredits - ? WHERE EmployeeNo = ?");
+                $stmt_deduct->execute([$days, $emp_no]);
+            }
+            
+            // (Optional reverse rule): If changing from Approved back to Rejected/Pending, you could restore credits here if needed
+
+            $pdo->commit();
             $action_message = "Request {$request_no} has been " . strtolower($decision) . ".";
         }
     }
