@@ -16,7 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_decision'])) {
     $decision = $_POST['decision'];
 
     if (!empty($request_no) && in_array($decision, ['Approved', 'Rejected'])) {
-        // 1. Fetch request details using lowercase table and Status column
         $stmt_check = $pdo->prepare("SELECT EmployeeNo, Days, Status FROM leave_request WHERE RequestNo = ?");
         $stmt_check->execute([$request_no]);
         $req_data = $stmt_check->fetch();
@@ -26,21 +25,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_decision'])) {
             $emp_no = $req_data['EmployeeNo'];
             $days = $req_data['Days'];
 
-            // Begin transaction to ensure data integrity
             $pdo->beginTransaction();
 
-            // 2. Update the status column
             $stmt_decide = $pdo->prepare("UPDATE leave_request SET Status = ? WHERE RequestNo = ?");
             $stmt_decide->execute([$decision, $request_no]);
 
-            // 3. Enforce BR4: If newly Approved, deduct leave credits
             if ($decision === 'Approved' && $current_status !== 'Approved') {
                 $stmt_deduct = $pdo->prepare("UPDATE employee SET LeaveCredits = LeaveCredits - ? WHERE EmployeeNo = ?");
                 $stmt_deduct->execute([$days, $emp_no]);
             }
             
             $pdo->commit();
-            $action_message = "Request {$request_no} has been " . strtolower($decision) . ".";
+            $action_message = "Request #{$request_no} has been " . strtolower($decision) . ".";
         }
     }
 }
@@ -53,12 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_dept'])) {
     if (!empty($emp_no) && !empty($department)) {
         $stmt_update = $pdo->prepare("UPDATE employee SET Department = ? WHERE EmployeeNo = ?");
         if ($stmt_update->execute([$department, $emp_no])) {
-            $action_message = "Department successfully assigned to {$emp_no}!";
+            $action_message = "Department successfully assigned to employee {$emp_no}!";
         }
     }
 }
 
-// Fetch all leave requests using lowercase table names and correct column aliases
 $stmt = $pdo->prepare("
     SELECT 
         r.RequestNo,
@@ -82,7 +77,6 @@ $stmt = $pdo->prepare("
 $stmt->execute();
 $all_requests = $stmt->fetchAll();
 
-// Fetch employees who have no department assigned yet
 $stmt_unassigned = $pdo->query("SELECT EmployeeNo, CONCAT(FirstName, ' ', LastName) AS FullName, Email FROM employee WHERE Department IS NULL OR Department = ''");
 $unassigned_employees = $stmt_unassigned->fetchAll();
 ?>
@@ -92,32 +86,134 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
     <meta charset="UTF-8">
     <title>Admin Dashboard - Leave Application System</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }
-        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .content { margin-top: 20px; background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; font-size: 14px; }
-        th, td { border: 1px solid #005a5b; padding: 10px 8px; text-align: left; }
-        th { background-color: #006666; color: white; white-space: nowrap; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .logout-btn { background: #dc3545; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; }
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .badge-rejected { background: #f8d7da; color: #721c24; }
-        .btn-approve { background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
-        .btn-reject { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; }
-        .msg-box { background: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --primary: #0f766e;
+            --primary-hover: #115e59;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 20px 28px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .header h2 { font-size: 20px; font-weight: 700; color: #0f172a; }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13.5px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .logout-btn:hover { background: #dc2626; transform: translateY(-1px); }
+
+        .content {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .content h3 { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 16px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        th { background-color: #f1f5f9; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        tr:hover td { background-color: #f8fafc; }
+
+        .badge { padding: 5px 10px; border-radius: 20px; font-weight: 600; font-size: 11.5px; display: inline-flex; }
+        .badge-pending { background: #fef3c7; color: #b45309; }
+        .badge-approved { background: #d1fae5; color: #065f46; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+        .btn-approve {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-approve:hover { background: #059669; }
+
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-reject:hover { background: #dc2626; }
+
         .assign-form { display: flex; gap: 10px; align-items: center; }
+        .assign-form select {
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 13px;
+            background: #f8fafc;
+        }
+        .assign-btn {
+            background: #0284c7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .assign-btn:hover { background: #0369a1; }
+
+        .msg-box { background: #ccfbf1; color: #115e59; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; border: 1px solid #99f6e4; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h2>Admin Dashboard (Welcome, <?php echo htmlspecialchars($_SESSION['Email']); ?> - <?php echo $_SESSION['Role']; ?>)</h2>
+        <h2>Admin Dashboard &mdash; Welcome, <?php echo htmlspecialchars($_SESSION['Email']); ?> (<?php echo $_SESSION['Role']; ?>)</h2>
         <a href="logout.php" class="logout-btn">Logout</a>
     </div>
 
     <?php if (!empty($action_message)): ?>
-        <div class="msg-box" style="margin-top:20px;"><?php echo htmlspecialchars($action_message); ?></div>
+        <div class="msg-box"><?php echo htmlspecialchars($action_message); ?></div>
     <?php endif; ?>
 
     <!-- Section 1: Unassigned Employees -->
@@ -146,14 +242,14 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
                                 <option value="IT">IT</option>
                                 <option value="Operations">Operations</option>
                             </select>
-                            <button type="submit" name="assign_dept" style="background:#007bff; color:white; border:none; border-radius:3px; padding:5px 10px; cursor:pointer;">Assign</button>
+                            <button type="submit" name="assign_dept" class="assign-btn">Assign</button>
                         </form>
                     </td>
                 </tr>
                 <?php endforeach; ?>
             </table>
         <?php else: ?>
-            <p style="color: #666;">All registered employees have been assigned a department.</p>
+            <p style="color: var(--text-muted); font-size: 14px;">All registered employees have been assigned a department.</p>
         <?php endif; ?>
     </div>
 
@@ -163,7 +259,7 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
         <table>
             <tr>
                 <th>Request No</th>
-                <th>Employee No</th>
+                <th>Emp No</th>
                 <th>Employee Name</th>
                 <th>Department</th>
                 <th>Supervisor ID</th>
@@ -172,14 +268,14 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
                 <th>Start Date</th>
                 <th>End Date</th>
                 <th>Days</th>
-                <th>Credits Available</th>
+                <th>Credits</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
             <?php if (count($all_requests) > 0): ?>
                 <?php foreach ($all_requests as $req): ?>
                 <tr>
-                    <td><strong><?php echo htmlspecialchars($req['RequestNo']); ?></strong></td>
+                    <td><strong>#<?php echo htmlspecialchars($req['RequestNo']); ?></strong></td>
                     <td><?php echo htmlspecialchars($req['EmployeeNo']); ?></td>
                     <td><?php echo htmlspecialchars($req['EmployeeName']); ?></td>
                     <td><?php echo htmlspecialchars($req['Department'] ?? 'N/A'); ?></td>
@@ -201,25 +297,27 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
                     </td>
                     <td>
                         <?php if ($status === 'Pending'): ?>
-                            <form action="admin_dashboard.php" method="POST" style="display:inline-block;">
-                                <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
-                                <input type="hidden" name="decision" value="Approved">
-                                <button type="submit" name="update_decision" class="btn-approve">Approve</button>
-                            </form>
-                            <form action="admin_dashboard.php" method="POST" style="display:inline-block;">
-                                <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
-                                <input type="hidden" name="decision" value="Rejected">
-                                <button type="submit" name="update_decision" class="btn-reject">Reject</button>
-                            </form>
+                            <div style="display: flex; gap: 6px;">
+                                <form action="admin_dashboard.php" method="POST" style="display:inline;">
+                                    <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
+                                    <input type="hidden" name="decision" value="Approved">
+                                    <button type="submit" name="update_decision" class="btn-approve">Approve</button>
+                                </form>
+                                <form action="admin_dashboard.php" method="POST" style="display:inline;">
+                                    <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
+                                    <input type="hidden" name="decision" value="Rejected">
+                                    <button type="submit" name="update_decision" class="btn-reject">Reject</button>
+                                </form>
+                            </div>
                         <?php else: ?>
-                            <span style="color: #999; font-size: 12px;">Completed</span>
+                            <span style="color: var(--text-muted); font-size: 12.5px; font-style: italic;">Completed</span>
                         <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="13" style="text-align:center; color: #777;">No leave requests found.</td>
+                    <td colspan="13" style="text-align:center; color: var(--text-muted); padding: 24px;">No leave requests found.</td>
                 </tr>
             <?php endif; ?>
         </table>
