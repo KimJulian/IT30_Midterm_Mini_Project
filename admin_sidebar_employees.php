@@ -36,6 +36,9 @@ $stmt_all_emps = $pdo->query("
     ORDER BY e.EmployeeNo ASC
 ");
 $all_employees_directory = $stmt_all_emps->fetchAll();
+
+$total_employees = count($all_employees_directory);
+$total_credits_pool = array_sum(array_column($all_employees_directory, 'LeaveCredits'));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -179,10 +182,39 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
             font-size: 15px;
         }
 
+        /* KPI Stat Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--primary);
+        }
+
+        .kpi-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+        .kpi-value { font-size: 32px; font-weight: 800; color: var(--text-main); margin-top: 6px; letter-spacing: -1px; }
+
         @media(max-width: 1024px) {
             .sidebar { width: 80px; padding: 16px; }
             .sidebar-brand span, .sidebar-menu span { display: none; }
             .main-content { margin-left: 80px; max-width: calc(100vw - 80px); }
+            .kpi-grid { grid-template-columns: 1fr; }
         }
 
         .content-card {
@@ -196,6 +228,28 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
         }
 
         .content-card h3 { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; }
+
+        /* Search Bar */
+        .search-container {
+            margin-bottom: 16px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            background: #f8fafc;
+            color: var(--text-main);
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.12);
+        }
 
         table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
         th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
@@ -271,6 +325,18 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
             <div class="alert alert-error"><?php echo htmlspecialchars($error_message); ?></div>
         <?php endif; ?>
 
+        <!-- KPI Metric Summary Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Total Registered Personnel</div>
+                <div class="kpi-value"><?php echo $total_employees; ?></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Total Company Leave Pool</div>
+                <div class="kpi-value" style="color: #0d9488;"><?php echo $total_credits_pool; ?> <span style="font-size: 18px; font-weight: 600;">Days</span></div>
+            </div>
+        </div>
+
         <!-- Section 1: Add Leave Credits Form -->
         <div class="content-card">
             <h3>Add Leave Credits to Employee</h3>
@@ -291,33 +357,64 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
         <!-- Section 2: Employee Directory Table -->
         <div class="content-card">
             <h3>Registered Personnel Directory</h3>
-            <table>
-                <tr>
-                    <th>Employee ID</th>
-                    <th>Full Name</th>
-                    <th>Email</th>
-                    <th>Department</th>
-                    <th>System Role</th>
-                    <th>Leave Credits</th>
-                </tr>
-                <?php if (count($all_employees_directory) > 0): ?>
-                    <?php foreach ($all_employees_directory as $direc): ?>
+            <div class="search-container">
+                <input type="text" id="employeeSearch" class="search-input" placeholder="🔍 Instant search by name, email, department, or ID..." onkeyup="filterEmployeeTable()">
+            </div>
+            <table id="employeeTable">
+                <thead>
                     <tr>
-                        <td><strong><?php echo htmlspecialchars($direc['EmployeeNo']); ?></strong></td>
-                        <td><?php echo htmlspecialchars($direc['FullName']); ?></td>
-                        <td><?php echo htmlspecialchars($direc['Email']); ?></td>
-                        <td><?php echo htmlspecialchars($direc['Department'] ?? 'Unassigned'); ?></td>
-                        <td><span class="badge-role"><?php echo htmlspecialchars($direc['Role'] ?? 'Employee'); ?></span></td>
-                        <td><strong><?php echo htmlspecialchars($direc['LeaveCredits']); ?> Days</strong></td>
+                        <th>Employee ID</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Department</th>
+                        <th>System Role</th>
+                        <th>Leave Credits</th>
                     </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 32px;">No employees found.</td>
-                    </tr>
-                <?php endif; ?>
+                </thead>
+                <tbody>
+                    <?php if (count($all_employees_directory) > 0): ?>
+                        <?php foreach ($all_employees_directory as $direc): ?>
+                        <tr>
+                            <td><strong><?php echo htmlspecialchars($direc['EmployeeNo']); ?></strong></td>
+                            <td><?php echo htmlspecialchars($direc['FullName']); ?></td>
+                            <td><?php echo htmlspecialchars($direc['Email']); ?></td>
+                            <td><?php echo htmlspecialchars($direc['Department'] ?? 'Unassigned'); ?></td>
+                            <td><span class="badge-role"><?php echo htmlspecialchars($direc['Role'] ?? 'Employee'); ?></span></td>
+                            <td><strong><?php echo htmlspecialchars($direc['LeaveCredits']); ?> Days</strong></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 32px;">No employees found.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
             </table>
         </div>
     </div>
+
+    <!-- Live Search Filter Script -->
+    <script>
+    function filterEmployeeTable() {
+        let input = document.getElementById("employeeSearch");
+        let filter = input.value.toLowerCase();
+        let table = document.getElementById("employeeTable");
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let td = tr[i].getElementsByTagName("td");
+            let match = false;
+            for (let j = 0; j < td.length; j++) {
+                if (td[j]) {
+                    if (td[j].innerHTML.toLowerCase().indexOf(filter) > -1) {
+                        match = true;
+                        break;
+                    }
+                }
+            }
+            tr[i].style.display = match ? "" : "none";
+        }
+    }
+    </script>
 </body>
 </html>

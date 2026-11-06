@@ -81,6 +81,11 @@ $all_requests = $stmt->fetchAll();
 // Fetch unassigned employees
 $stmt_unassigned = $pdo->query("SELECT EmployeeNo, CONCAT(FirstName, ' ', LastName) AS FullName, Email FROM employee WHERE Department IS NULL OR Department = '' OR Department = 'Unassigned'");
 $unassigned_employees = $stmt_unassigned->fetchAll();
+
+// Metrics calculation for KPI Cards
+$total_requests = count($all_requests);
+$pending_requests = count(array_filter($all_requests, fn($r) => $r['Status'] === 'Pending'));
+$unassigned_count = count($unassigned_employees);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -224,10 +229,39 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
             font-size: 15px;
         }
 
+        /* KPI Stat Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-card);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--primary);
+        }
+
+        .kpi-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+        .kpi-value { font-size: 32px; font-weight: 800; color: var(--text-main); margin-top: 6px; letter-spacing: -1px; }
+
         @media(max-width: 1024px) {
             .sidebar { width: 80px; padding: 16px; }
             .sidebar-brand span, .sidebar-menu span { display: none; }
             .main-content { margin-left: 80px; max-width: calc(100vw - 80px); }
+            .kpi-grid { grid-template-columns: 1fr; }
         }
 
         .content-card {
@@ -241,6 +275,28 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
         }
 
         .content-card h3 { font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; }
+
+        /* Search Bar */
+        .search-container {
+            margin-bottom: 16px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            background: #f8fafc;
+            color: var(--text-main);
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.12);
+        }
 
         table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
         th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
@@ -340,6 +396,22 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
             <div class="alert"><?php echo htmlspecialchars($action_message); ?></div>
         <?php endif; ?>
 
+        <!-- KPI Metric Summary Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Total Leave Requests</div>
+                <div class="kpi-value"><?php echo $total_requests; ?></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Pending Review</div>
+                <div class="kpi-value" style="color: #b45309;"><?php echo $pending_requests; ?></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-title">Unassigned Personnel</div>
+                <div class="kpi-value" style="color: #0d9488;"><?php echo $unassigned_count; ?></div>
+            </div>
+        </div>
+
         <!-- Section 1: Pending Department Assignments -->
         <div class="content-card">
             <h3>Pending Employee Department Assignments</h3>
@@ -379,72 +451,103 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
         <!-- Section 2: Company-Wide Leave Requests Management -->
         <div class="content-card">
             <h3>Company-Wide Leave Requests Management</h3>
-            <table>
-                <tr>
-                    <th>Request No</th>
-                    <th>Emp No</th>
-                    <th>Employee Name</th>
-                    <th>Department</th>
-                    <th>Supervisor ID</th>
-                    <th>Supervisor Name</th>
-                    <th>Leave Type</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Days</th>
-                    <th>Credits</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-                <?php if (count($all_requests) > 0): ?>
-                    <?php foreach ($all_requests as $req): ?>
+            <div class="search-container">
+                <input type="text" id="leaveSearch" class="search-input" placeholder="🔍 Instant search by employee name, ID, leave type, or status..." onkeyup="filterLeaveTable()">
+            </div>
+            <table id="leaveTable">
+                <thead>
                     <tr>
-                        <td><strong>#<?php echo htmlspecialchars($req['RequestNo']); ?></strong></td>
-                        <td><?php echo htmlspecialchars($req['EmployeeNo']); ?></td>
-                        <td><?php echo htmlspecialchars($req['EmployeeName']); ?></td>
-                        <td><?php echo htmlspecialchars($req['Department'] ?? 'N/A'); ?></td>
-                        <td><?php echo htmlspecialchars($req['SupervisorID'] ?? 'N/A'); ?></td>
-                        <td><?php echo htmlspecialchars($req['SupervisorName'] ?? 'None'); ?></td>
-                        <td><?php echo htmlspecialchars($req['LeaveType']); ?></td>
-                        <td><?php echo htmlspecialchars($req['StartDate']); ?></td>
-                        <td><?php echo htmlspecialchars($req['EndDate']); ?></td>
-                        <td><?php echo htmlspecialchars($req['Days']); ?></td>
-                        <td><?php echo htmlspecialchars($req['CreditsAvailable'] ?? '0'); ?></td>
-                        <td>
-                            <?php 
-                                $status = $req['Status'];
-                                $badge_class = 'badge-pending';
-                                if ($status === 'Approved') $badge_class = 'badge-approved';
-                                if ($status === 'Rejected') $badge_class = 'badge-rejected';
-                            ?>
-                            <span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars($status); ?></span>
-                        </td>
-                        <td>
-                            <?php if ($status === 'Pending'): ?>
-                                <div style="display: flex; gap: 6px;">
-                                    <form action="admin_dashboard.php" method="POST" style="display:inline;">
-                                        <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
-                                        <input type="hidden" name="decision" value="Approved">
-                                        <button type="submit" name="update_decision" class="btn-approve">Approve</button>
-                                    </form>
-                                    <form action="admin_dashboard.php" method="POST" style="display:inline;">
-                                        <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
-                                        <input type="hidden" name="decision" value="Rejected">
-                                        <button type="submit" name="update_decision" class="btn-reject">Reject</button>
-                                    </form>
-                                </div>
-                            <?php else: ?>
-                                <span style="color: var(--text-muted); font-size: 12.5px; font-style: italic;">Completed</span>
-                            <?php endif; ?>
-                        </td>
+                        <th>Request No</th>
+                        <th>Emp No</th>
+                        <th>Employee Name</th>
+                        <th>Department</th>
+                        <th>Supervisor ID</th>
+                        <th>Supervisor Name</th>
+                        <th>Leave Type</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Days</th>
+                        <th>Credits</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="13" style="text-align:center; color: var(--text-muted); padding: 32px;">No leave requests found.</td>
-                    </tr>
-                <?php endif; ?>
+                </thead>
+                <tbody>
+                    <?php if (count($all_requests) > 0): ?>
+                        <?php foreach ($all_requests as $req): ?>
+                        <tr>
+                            <td><strong>#<?php echo htmlspecialchars($req['RequestNo']); ?></strong></td>
+                            <td><?php echo htmlspecialchars($req['EmployeeNo']); ?></td>
+                            <td><?php echo htmlspecialchars($req['EmployeeName']); ?></td>
+                            <td><?php echo htmlspecialchars($req['Department'] ?? 'N/A'); ?></td>
+                            <td><?php echo htmlspecialchars($req['SupervisorID'] ?? 'N/A'); ?></td>
+                            <td><?php echo htmlspecialchars($req['SupervisorName'] ?? 'None'); ?></td>
+                            <td><?php echo htmlspecialchars($req['LeaveType']); ?></td>
+                            <td><?php echo htmlspecialchars($req['StartDate']); ?></td>
+                            <td><?php echo htmlspecialchars($req['EndDate']); ?></td>
+                            <td><?php echo htmlspecialchars($req['Days']); ?></td>
+                            <td><?php echo htmlspecialchars($req['CreditsAvailable'] ?? '0'); ?></td>
+                            <td>
+                                <?php 
+                                    $status = $req['Status'];
+                                    $badge_class = 'badge-pending';
+                                    if ($status === 'Approved') $badge_class = 'badge-approved';
+                                    if ($status === 'Rejected') $badge_class = 'badge-rejected';
+                                ?>
+                                <span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars($status); ?></span>
+                            </td>
+                            <td>
+                                <?php if ($status === 'Pending'): ?>
+                                    <div style="display: flex; gap: 6px;">
+                                        <form action="admin_dashboard.php" method="POST" style="display:inline;">
+                                            <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
+                                            <input type="hidden" name="decision" value="Approved">
+                                            <button type="submit" name="update_decision" class="btn-approve">Approve</button>
+                                        </form>
+                                        <form action="admin_dashboard.php" method="POST" style="display:inline;">
+                                            <input type="hidden" name="request_no" value="<?php echo $req['RequestNo']; ?>">
+                                            <input type="hidden" name="decision" value="Rejected">
+                                            <button type="submit" name="update_decision" class="btn-reject">Reject</button>
+                                        </form>
+                                    </div>
+                                <?php else: ?>
+                                    <span style="color: var(--text-muted); font-size: 12.5px; font-style: italic;">Completed</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="13" style="text-align:center; color: var(--text-muted); padding: 32px;">No leave requests found.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
             </table>
         </div>
     </div>
+
+    <!-- Live Search Filter Script -->
+    <script>
+    function filterLeaveTable() {
+        let input = document.getElementById("leaveSearch");
+        let filter = input.value.toLowerCase();
+        let table = document.getElementById("leaveTable");
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let td = tr[i].getElementsByTagName("td");
+            let match = false;
+            for (let j = 0; j < td.length; j++) {
+                if (td[j]) {
+                    if (td[j].innerHTML.toLowerCase().indexOf(filter) > -1) {
+                        match = true;
+                        break;
+                    }
+                }
+            }
+            tr[i].style.display = match ? "" : "none";
+        }
+    }
+    </script>
 </body>
 </html>
