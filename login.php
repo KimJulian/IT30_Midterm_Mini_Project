@@ -19,10 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['Role'] = $user['Role'];
             $_SESSION['EmployeeNo'] = $user['EmployeeNo'];
 
-            if ($user['Role'] === 'Admin' || $user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
-                header("Location: admin_dashboard.php");
+            if ($user['Role'] === 'Admin' || $user['Role'] === 'HR_Admin' || $user['Role'] === 'HR' || $user['Role'] === 'Supervisor') {
+               header("Location: admin_dashboard.php");
             } else {
-                header("Location: employee_dashboard.php");
+               header("Location: employee_dashboard.php");
             }
             exit();
         } else {
@@ -175,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <form action="login.php" method="POST">
             <div class="form-group">
                 <label>Email Address</label>
-                <input type="email" name="email" placeholder="admin@system.com" required>
+                <input type="email" name="email" placeholder="Enter email" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
