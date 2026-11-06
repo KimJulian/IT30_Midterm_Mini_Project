@@ -54,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_dept'])) {
     }
 }
 
+// Fetch all leave requests
 $stmt = $pdo->prepare("
     SELECT 
         r.RequestNo,
@@ -77,9 +78,18 @@ $stmt = $pdo->prepare("
 $stmt->execute();
 $all_requests = $stmt->fetchAll();
 
-// Updated query to also catch 'Unassigned'
+// Fetch unassigned employees
 $stmt_unassigned = $pdo->query("SELECT EmployeeNo, CONCAT(FirstName, ' ', LastName) AS FullName, Email FROM employee WHERE Department IS NULL OR Department = '' OR Department = 'Unassigned'");
 $unassigned_employees = $stmt_unassigned->fetchAll();
+
+// Fetch all employees for the new Employee Directory section
+$stmt_all_emps = $pdo->query("
+    SELECT e.EmployeeNo, CONCAT(e.FirstName, ' ', e.LastName) AS FullName, e.Email, e.Department, e.LeaveCredits, u.Role 
+    FROM employee e
+    LEFT JOIN users u ON e.EmployeeNo = u.EmployeeNo
+    ORDER BY e.EmployeeNo ASC
+");
+$all_employees_directory = $stmt_all_emps->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -250,6 +260,7 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
         .badge-pending { background: #fef3c7; color: #b45309; }
         .badge-approved { background: #d1fae5; color: #065f46; }
         .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-role { background: #e0f2fe; color: #0369a1; }
 
         .btn-approve {
             background: #10b981;
@@ -310,6 +321,7 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
         </div>
         <ul class="sidebar-menu">
             <li><a href="admin_dashboard.php" class="active"><span>Dashboard</span></a></li>
+            <li><a href="#employees-section"><span>Employees</span></a></li>
         </ul>
         <div class="sidebar-footer">
             <a href="logout.php" class="logout-btn"><span>Sign Out</span></a>
@@ -338,7 +350,7 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
             <div class="alert"><?php echo htmlspecialchars($action_message); ?></div>
         <?php endif; ?>
 
-        <!-- Section 1: Unassigned Employees -->
+        <!-- Section 1: Pending Department Assignments -->
         <div class="content-card">
             <h3>Pending Employee Department Assignments</h3>
             <?php if (count($unassigned_employees) > 0): ?>
@@ -374,7 +386,38 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
             <?php endif; ?>
         </div>
 
-        <!-- Section 2: Complete Leave Requests Table -->
+        <!-- Section 2: Employee Directory (New Sidebar Target) -->
+        <div class="content-card" id="employees-section">
+            <h3>Employee Directory</h3>
+            <table>
+                <tr>
+                    <th>Employee ID</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>System Role</th>
+                    <th>Leave Credits</th>
+                </tr>
+                <?php if (count($all_employees_directory) > 0): ?>
+                    <?php foreach ($all_employees_directory as $direc): ?>
+                    <tr>
+                        <td><strong><?php echo htmlspecialchars($direc['EmployeeNo']); ?></strong></td>
+                        <td><?php echo htmlspecialchars($direc['FullName']); ?></td>
+                        <td><?php echo htmlspecialchars($direc['Email']); ?></td>
+                        <td><?php echo htmlspecialchars($direc['Department'] ?? 'Unassigned'); ?></td>
+                        <td><span class="badge badge-role"><?php echo htmlspecialchars($direc['Role'] ?? 'Employee'); ?></span></td>
+                        <td><strong><?php echo htmlspecialchars($direc['LeaveCredits']); ?> Days</strong></td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 32px;">No employees found.</td>
+                    </tr>
+                <?php endif; ?>
+            </table>
+        </div>
+
+        <!-- Section 3: Company-Wide Leave Requests Management -->
         <div class="content-card">
             <h3>Company-Wide Leave Requests Management</h3>
             <table>
