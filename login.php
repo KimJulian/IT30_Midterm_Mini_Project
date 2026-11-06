@@ -9,7 +9,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = trim($_POST['password']);
 
     if (!empty($email) && !empty($password)) {
-        // Updated table name to lowercase 'users'
         $stmt = $pdo->prepare("SELECT * FROM users WHERE Email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
@@ -20,7 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['Role'] = $user['Role'];
             $_SESSION['EmployeeNo'] = $user['EmployeeNo'];
 
-            // Added 'Admin' to match your database seed role
             if ($user['Role'] === 'Admin' || $user['Role'] === 'HR_Admin' || $user['Role'] === 'Supervisor') {
                 header("Location: admin_dashboard.php");
             } else {
@@ -41,150 +39,132 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <title>Login - Leave Application System</title>
     <style>
-    /* ============ BASE ============ */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #0f766e;
+            --primary-hover: #115e59;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --radius: 14px;
+        }
 
-    body {
-        font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
-        background: linear-gradient(135deg, #eef2f7 0%, #dfe6ef 50%, #e6f1ea 100%);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        margin: 0;
-        padding: 20px;
-        color: #1f2937;
-    }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ============ LOGIN CARD ============ */
-    .login-card {
-        background: #ffffff;
-        padding: 38px 32px;
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
-        width: 380px;
-        max-width: 100%;
-        border: 1px solid #e5eaf1;
-        position: relative;
-        overflow: hidden;
-        animation: fadeUp 0.45s ease;
-    }
-    .login-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 5px;
-        background: linear-gradient(90deg, #007bff, #28a745);
-    }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 20px;
+            color: var(--text-main);
+        }
 
-    @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(14px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
+        .login-card {
+            background: var(--card-bg);
+            padding: 40px 32px;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+            width: 400px;
+            max-width: 100%;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
 
-    .login-card h2 {
-        margin-bottom: 26px;
-        color: #111827;
-        text-align: center;
-        font-size: 22px;
-        font-weight: 800;
-        letter-spacing: -0.4px;
-    }
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #0f766e, #14b8a6);
+        }
 
-    /* ============ FORM ============ */
-    .form-group { margin-bottom: 18px; }
+        .login-card h2 {
+            margin-bottom: 24px;
+            color: #0f172a;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
 
-    .form-group label {
-        display: block;
-        margin-bottom: 6px;
-        color: #4b5563;
-        font-size: 11.5px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-    }
+        .form-group { margin-bottom: 20px; }
 
-    .form-group input {
-        width: 100%;
-        padding: 11px 14px;
-        box-sizing: border-box;
-        border: 1.5px solid #d7dce3;
-        border-radius: 10px;
-        font-family: inherit;
-        font-size: 14px;
-        color: #1f2937;
-        background: #f8fafc;
-        outline: none;
-        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-    }
-    .form-group input::placeholder { color: #9ca3af; }
-    .form-group input:hover { border-color: #b6bfc9; }
-    .form-group input:focus {
-        border-color: #007bff;
-        background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12);
-    }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 600;
+        }
 
-    /* ============ BUTTON ============ */
-    .btn {
-        width: 100%;
-        padding: 12px;
-        background: linear-gradient(135deg, #339dff, #007bff);
-        border: none;
-        color: white;
-        border-radius: 10px;
-        font-family: inherit;
-        font-weight: 700;
-        font-size: 14px;
-        letter-spacing: 0.3px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-        transition: transform 0.15s, box-shadow 0.15s;
-        margin-top: 4px;
-    }
-    .btn:hover {
-        background: #0056b3;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 18px rgba(0, 86, 179, 0.35);
-    }
-    .btn:active { transform: translateY(0); }
+        .form-group input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            background: #f8fafc;
+            color: var(--text-main);
+            transition: all 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+        }
 
-    /* ============ ERROR ============ */
-    .error {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-left: 4px solid #dc3545;
-        color: #b91c1c;
-        font-size: 13px;
-        font-weight: 600;
-        padding: 11px 14px;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        text-align: center;
-    }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
+        }
+        .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
 
-    /* ============ REGISTER LINK ============ */
-    .register-link {
-        text-align: center;
-        margin-top: 20px;
-        padding-top: 16px;
-        border-top: 1px solid #f0f4f8;
-        font-size: 13.5px;
-        color: #6b7280;
-    }
-    .register-link a {
-        color: #28a745;
-        text-decoration: none;
-        font-weight: 700;
-        transition: color 0.15s;
-    }
-    .register-link a:hover {
-        text-decoration: underline;
-        color: #1d7a35;
-    }
-</style>
+        .error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .register-link {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 13.5px;
+            color: var(--text-muted);
+        }
+        .register-link a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .register-link a:hover { text-decoration: underline; }
+    </style>
 </head>
 <body>
     <div class="login-card">
@@ -195,13 +175,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <form action="login.php" method="POST">
             <div class="form-group">
                 <label>Email Address</label>
-                <input type="email" name="email" placeholder="e.g., admin@system.com" required>
+                <input type="email" name="email" placeholder="admin@system.com" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
                 <input type="password" name="password" placeholder="Enter password" required>
             </div>
-            <button type="submit" class="btn">Login</button>
+            <button type="submit" class="btn">Sign In</button>
         </form>
         <div class="register-link">
             Don't have an account? <a href="registration.php">Register here</a>
