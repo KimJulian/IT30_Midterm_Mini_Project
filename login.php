@@ -75,15 +75,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         /* Left Side: Brand Panel */
         .brand-panel {
-            flex: 1;
+            flex: 1.1;
             background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
             color: white;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 60px;
+            padding: 50px;
             position: relative;
-            overflow: hidden;
+            overflow: visible; /* Allows shadow to cast outside */
+            box-shadow: 15px 0 30px rgba(15, 23, 42, 0.25);
+            z-index: 10; /* Ensures the shadow drops over the white side */
         }
 
         .brand-panel::before {
