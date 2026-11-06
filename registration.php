@@ -11,41 +11,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
+    $role = $_POST['role'] ?? 'Employee';
+    $department = 'Unassigned'; // Default department upon registration
 
     if (!empty($first_name) && !empty($last_name) && !empty($email) && !empty($password) && !empty($confirm_password)) {
-        if ($password === $confirm_password) {
-            // Check if email already exists
-            $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM users WHERE Email = ?");
-            $stmt_check->execute([$email]);
-            if ($stmt_check->fetchColumn() > 0) {
-                $error = "An account with this email already exists.";
-            } else {
-                try {
-                    $pdo->beginTransaction();
-
-                    // 1. Generate a unique Employee Number
-                    $stmt_count = $pdo->query("SELECT COUNT(*) FROM employee");
-                    $emp_count = $stmt_count->fetchColumn() + 1;
-                    $employee_no = 'EMP-' . str_pad($emp_count, 3, '0', STR_PAD_LEFT);
-
-                    // 2. Insert into employee table with 'Unassigned' department
-                    $stmt_emp = $pdo->prepare("INSERT INTO employee (EmployeeNo, FirstName, LastName, Department, LeaveCredits, Email) VALUES (?, ?, ?, 'Unassigned', 15.00, ?)");
-                    $stmt_emp->execute([$employee_no, $first_name, $last_name, $email]);
-
-                    // 3. Insert into users table with 'Employee' role
-                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                    $stmt_user = $pdo->prepare("INSERT INTO users (Email, PasswordHash, Role, EmployeeNo) VALUES (?, ?, 'Employee', ?)");
-                    $stmt_user->execute([$email, $password_hash, $employee_no]);
-
-                    $pdo->commit();
-                    $success = "Registration successful! You can now <a href='login.php' style='color: var(--primary); font-weight: 600;'>sign in</a>.";
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    $error = "Registration failed: " . $e->getMessage();
-                }
-            }
+        if ($password !== $confirm_password) {
+            $error = "Passwords do not match. Please try again.";
         } else {
-            $error = "Passwords do not match.";
+            // Check if email already exists
+            $stmt_check = $pdo->prepare("SELECT UserID FROM users WHERE Email = ?");
+            $stmt_check->execute([$email]);
+            if ($stmt_check->rowCount() > 0) {
+                $error = "Email address is already registered.";
+            } else {
+                $pdo->beginTransaction();
+
+                // 1. Insert into employee table with default 'Unassigned' department and 15 leave credits
+                $stmt_emp = $pdo->prepare("INSERT INTO employee (FirstName, LastName, Department, LeaveCredits) VALUES (?, ?, ?, 15.0)");
+                $stmt_emp->execute([$first_name, $last_name, $department]);
+                $employee_no = $pdo->lastInsertId();
+
+                // 2. Insert into users table
+                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                $stmt_user = $pdo->prepare("INSERT INTO users (EmployeeNo, Email, PasswordHash, Role) VALUES (?, ?, ?, ?)");
+                $stmt_user->execute([$employee_no, $email, $password_hash, $role]);
+
+                $pdo->commit();
+                $success = "Account successfully created! You can now sign in.";
+            }
         }
     } else {
         $error = "Please fill in all required fields.";
@@ -56,90 +49,166 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Register - Leave Application System</title>
+    <title>Create Account - Leave Application System</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
         :root {
             --primary: #0d9488;
+            --primary-light: #ccfbf1;
             --primary-hover: #0f766e;
-            --bg-main: #f1f5f9;
+            --bg-main: #e2e8f0;
             --card-bg: #ffffff;
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border-color: #e2e8f0;
-            --radius-sm: 8px;
-            --radius-md: 14px;
-            --shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+            --radius-md: 16px;
+            --shadow-card: 0 20px 40px rgba(15, 23, 42, 0.12);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            background-color: var(--bg-main);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 40px;
             color: var(--text-main);
+        }
+
+        .split-container {
+            display: flex;
+            width: 1050px;
+            max-width: 100%;
+            background: var(--card-bg);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        /* Left Side: Brand Panel */
+        .brand-panel {
+            flex: 1.1;
+            background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 50px;
+            position: relative;
+            overflow: visible;
+            box-shadow: 15px 0 30px rgba(15, 23, 42, 0.25);
+            z-index: 10;
+        }
+
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            width: 400px; height: 400px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            top: -80px; right: -80px;
+            pointer-events: none;
+        }
+
+        .brand-logo {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-content h1 {
+            font-size: 34px;
+            font-weight: 800;
+            line-height: 1.25;
+            letter-spacing: -1px;
+            margin-bottom: 14px;
+        }
+
+        .brand-content p {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.5;
+        }
+
+        .brand-footer {
+            font-size: 12.5px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Right Side: Form Panel */
+        .form-panel {
+            flex: 1.2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            background: var(--card-bg);
+            position: relative;
+            z-index: 1;
         }
 
         .register-card {
-            background: var(--card-bg);
-            padding: 40px 32px;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-card);
-            width: 440px;
-            max-width: 100%;
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
+            width: 100%;
+            max-width: 420px;
         }
 
-        .register-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #0d9488, #14b8a6);
-        }
-
-        .register-card h2 {
+        .register-header {
             margin-bottom: 24px;
-            color: var(--text-main);
-            text-align: center;
+        }
+
+        .register-header h2 {
             font-size: 24px;
             font-weight: 800;
+            color: var(--text-main);
             letter-spacing: -0.5px;
+            margin-bottom: 6px;
         }
 
-        .form-row { display: flex; gap: 12px; }
-        .form-group { margin-bottom: 18px; flex: 1; }
+        .register-header p {
+            font-size: 13.5px;
+            color: var(--text-muted);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            flex: 1;
+        }
 
         .form-group label {
             display: block;
             margin-bottom: 6px;
-            color: var(--text-muted);
-            font-size: 12.5px;
+            color: var(--text-main);
+            font-size: 12px;
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
-            padding: 12px 16px;
+            padding: 11px 14px;
             border: 1.5px solid var(--border-color);
-            border-radius: var(--radius-sm);
+            border-radius: 8px;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 13.5px;
             background: #f8fafc;
             color: var(--text-main);
             transition: all 0.2s;
         }
-        .form-group input:focus {
+
+        .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: var(--primary);
             background: #ffffff;
@@ -148,11 +217,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         .btn {
             width: 100%;
-            padding: 14px;
+            padding: 13px;
             background: var(--primary);
             border: none;
             color: white;
-            border-radius: var(--radius-sm);
+            border-radius: 8px;
             font-family: inherit;
             font-weight: 700;
             font-size: 14px;
@@ -161,7 +230,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
             margin-top: 4px;
         }
-        .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
 
         .error {
             background: #fee2e2;
@@ -169,79 +242,126 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #991b1b;
             font-size: 13px;
             font-weight: 600;
-            padding: 12px;
-            border-radius: var(--radius-sm);
-            margin-bottom: 20px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
             text-align: center;
         }
 
         .success {
-            background: #ccfbf1;
-            border: 1px solid #99f6e4;
-            color: #115e59;
+            background: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
             font-size: 13px;
             font-weight: 600;
-            padding: 12px;
-            border-radius: var(--radius-sm);
-            margin-bottom: 20px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
             text-align: center;
         }
 
         .login-link {
             text-align: center;
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border-color);
+            margin-top: 20px;
             font-size: 13.5px;
             color: var(--text-muted);
         }
+
         .login-link a {
             color: var(--primary);
             text-decoration: none;
             font-weight: 700;
         }
-        .login-link a:hover { text-decoration: underline; }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        @media(max-width: 850px) {
+            .brand-panel { display: none; }
+            .split-container { max-width: 460px; }
+        }
     </style>
 </head>
 <body>
-    <div class="register-card">
-        <h2>Employee Registration</h2>
-        <?php if (!empty($error)): ?>
-            <div class="error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
-        <?php if (!empty($success)): ?>
-            <div class="success"><?php echo $success; ?></div>
-        <?php endif; ?>
 
-        <form action="registration.php" method="POST">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>First Name</label>
-                    <input type="text" name="first_name" placeholder="John" required>
-                </div>
-                <div class="form-group">
-                    <label>Last Name</label>
-                    <input type="text" name="last_name" placeholder="Doe" required>
-                </div>
+    <div class="split-container">
+        <!-- Left Brand Banner -->
+        <div class="brand-panel">
+            <div class="brand-logo">
+                <span>LeavePortal</span>
             </div>
-            <div class="form-group">
-                <label>Email Address</label>
-                <input type="email" name="email" placeholder="john.doe@system.com" required>
+            <div class="brand-content">
+                <h1>Join the enterprise portal today.</h1>
+                <p>Register your account to manage leave applications, track credit balances, and coordinate team schedules seamlessly.</p>
             </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" placeholder="Create password" required>
+            <div class="brand-footer">
+                &copy; 2026 Leave Application System. All rights reserved.
             </div>
-            <div class="form-group">
-                <label>Confirm Password</label>
-                <input type="password" name="confirm_password" placeholder="Confirm password" required>
-            </div>
-            <button type="submit" class="btn">Create Account</button>
-        </form>
+        </div>
 
-        <div class="login-link">
-            Already have an account? <a href="login.php">Sign in here</a>
+        <!-- Right Registration Form -->
+        <div class="form-panel">
+            <div class="register-card">
+                <div class="register-header">
+                    <h2>Create Account</h2>
+                    <p>Enter your details to register a new account</p>
+                </div>
+
+                <?php if (!empty($error)): ?>
+                    <div class="error"><?php echo htmlspecialchars($error); ?></div>
+                <?php endif; ?>
+                <?php if (!empty($success)): ?>
+                    <div class="success"><?php echo htmlspecialchars($success); ?></div>
+                <?php endif; ?>
+
+                <form action="registration.php" method="POST">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <input type="text" name="first_name" placeholder="John" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <input type="text" name="last_name" placeholder="Doe" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="name@company.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Account Role</label>
+                        <select name="role">
+                            <option value="Employee">Employee</option>
+                            <option value="Supervisor">Supervisor</option>
+                            <option value="HR_Admin">HR Admin</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" name="password" placeholder="Create password" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password</label>
+                            <input type="password" name="confirm_password" placeholder="Confirm password" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn">Create Account</button>
+                </form>
+
+                <div class="login-link">
+                    Already have an account? <a href="login.php">Sign in</a>
+                </div>
+            </div>
         </div>
     </div>
+
 </body>
 </html>
