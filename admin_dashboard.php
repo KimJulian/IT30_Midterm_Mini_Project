@@ -361,7 +361,6 @@ $unassigned_employees = $stmt_unassigned->fetchAll();
                                     <option value="">-- Select Dept --</option>
                                     <option value="Sales">Sales</option>
                                     <option value="HR">HR</option>
-                                    <option value="IT">IT</option>
                                     <option value="Operations">Operations</option>
                                 </select>
                                 <button type="submit" name="assign_dept" class="assign-btn">Assign</button>
