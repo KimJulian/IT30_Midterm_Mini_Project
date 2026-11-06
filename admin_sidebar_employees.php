@@ -8,7 +8,27 @@ if (!isset($_SESSION['UserID']) || !in_array($_SESSION['Role'], ['Admin', 'HR_Ad
     exit();
 }
 
-// Fetch all employees for the directory
+$action_message = '';
+$error_message = '';
+
+// Handle Adding Leave Credits from the Employees page
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_credits'])) {
+    $emp_no = $_POST['employee_no'];
+    $credits_to_add = floatval($_POST['credits']);
+
+    if (!empty($emp_no) && $credits_to_add > 0) {
+        $stmt_add = $pdo->prepare("UPDATE employee SET LeaveCredits = LeaveCredits + ? WHERE EmployeeNo = ?");
+        if ($stmt_add->execute([$credits_to_add, $emp_no])) {
+            $action_message = "Successfully added {$credits_to_add} leave credit(s) to employee {$emp_no}!";
+        } else {
+            $error_message = "Failed to update leave credits.";
+        }
+    } else {
+        $error_message = "Please select an employee and enter a valid credit amount greater than 0.";
+    }
+}
+
+// Fetch all employees for the directory and credit allocation dropdown
 $stmt_all_emps = $pdo->query("
     SELECT e.EmployeeNo, CONCAT(e.FirstName, ' ', e.LastName) AS FullName, e.Email, e.Department, e.LeaveCredits, u.Role 
     FROM employee e
@@ -171,6 +191,7 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
             border-radius: var(--radius-md);
             box-shadow: var(--shadow-card);
             border: 1px solid var(--border-color);
+            margin-bottom: 28px;
             overflow-x: auto;
         }
 
@@ -182,6 +203,31 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
         tr:hover td { background-color: #f8fafc; }
 
         .badge-role { background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 30px; font-weight: 700; font-size: 11.5px; display: inline-flex; }
+
+        .credits-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .credits-form select, .credits-form input {
+            padding: 10px 14px;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13.5px;
+            background: #f8fafc;
+            font-family: inherit;
+        }
+        .credits-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 18px;
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .credits-btn:hover { background: var(--primary-hover); }
+
+        .alert { padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 24px; font-weight: 600; font-size: 14px; background: #ccfbf1; color: #115e59; border: 1px solid #99f6e4; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     </style>
 </head>
 <body>
@@ -193,7 +239,7 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
         </div>
         <ul class="sidebar-menu">
             <li><a href="admin_dashboard.php"><span>Dashboard</span></a></li>
-            <li><a href="employees.php" class="active"><span>Employees</span></a></li>
+            <li><a href="admin_sidebar_employees.php" class="active"><span>Employees</span></a></li>
         </ul>
         <div class="sidebar-footer">
             <a href="logout.php" class="logout-btn"><span>Sign Out</span></a>
@@ -204,8 +250,8 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
     <div class="main-content">
         <div class="top-header">
             <div>
-                <h2 style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">Employee Directory</h2>
-                <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 2px;">View all registered company personnel, roles, and leave balances.</p>
+                <h2 style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">Employee Management</h2>
+                <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 2px;">View personnel directory and allocate leave credits.</p>
             </div>
             <div class="user-profile">
                 <div class="avatar">
@@ -218,6 +264,31 @@ $all_employees_directory = $stmt_all_emps->fetchAll();
             </div>
         </div>
 
+        <?php if (!empty($action_message)): ?>
+            <div class="alert"><?php echo htmlspecialchars($action_message); ?></div>
+        <?php endif; ?>
+        <?php if (!empty($error_message)): ?>
+            <div class="alert alert-error"><?php echo htmlspecialchars($error_message); ?></div>
+        <?php endif; ?>
+
+        <!-- Section 1: Add Leave Credits Form -->
+        <div class="content-card">
+            <h3>Add Leave Credits to Employee</h3>
+            <form action="admin_sidebar_employees.php" method="POST" class="credits-form">
+                <select name="employee_no" required style="flex: 2;">
+                    <option value="">-- Select Employee --</option>
+                    <?php foreach ($all_employees_directory as $emp): ?>
+                        <option value="<?php echo $emp['EmployeeNo']; ?>">
+                            <?php echo htmlspecialchars($emp['EmployeeNo'] . ' - ' . $emp['FullName'] . ' (Current: ' . $emp['LeaveCredits'] . ' Days)'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <input type="number" step="0.5" min="0.5" name="credits" placeholder="Credits to Add (e.g. 5)" required style="flex: 1;">
+                <button type="submit" name="add_credits" class="credits-btn">Add Credits</button>
+            </form>
+        </div>
+
+        <!-- Section 2: Employee Directory Table -->
         <div class="content-card">
             <h3>Registered Personnel Directory</h3>
             <table>
