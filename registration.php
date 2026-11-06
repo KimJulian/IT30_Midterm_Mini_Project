@@ -28,8 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $emp_count = $stmt_count->fetchColumn() + 1;
                     $employee_no = 'EMP-' . str_pad($emp_count, 3, '0', STR_PAD_LEFT);
 
-                    // 2. Insert into employee table (Department defaults to NULL until assigned by admin)
-                    $stmt_emp = $pdo->prepare("INSERT INTO employee (EmployeeNo, FirstName, LastName, Department, LeaveCredits, Email) VALUES (?, ?, ?, NULL, 15.00, ?)");
+                    // 2. Insert into employee table with 'Unassigned' department
+                    $stmt_emp = $pdo->prepare("INSERT INTO employee (EmployeeNo, FirstName, LastName, Department, LeaveCredits, Email) VALUES (?, ?, ?, 'Unassigned', 15.00, ?)");
                     $stmt_emp->execute([$employee_no, $first_name, $last_name, $email]);
 
                     // 3. Insert into users table with 'Employee' role
@@ -58,23 +58,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <title>Register - Leave Application System</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
         :root {
-            --primary: #0f766e;
-            --primary-hover: #115e59;
-            --bg-main: #f8fafc;
+            --primary: #0d9488;
+            --primary-hover: #0f766e;
+            --bg-main: #f1f5f9;
             --card-bg: #ffffff;
-            --text-main: #1e293b;
+            --text-main: #0f172a;
             --text-muted: #64748b;
             --border-color: #e2e8f0;
-            --radius: 14px;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             display: flex;
             justify-content: center;
@@ -87,8 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .register-card {
             background: var(--card-bg);
             padding: 40px 32px;
-            border-radius: var(--radius);
-            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-card);
             width: 440px;
             max-width: 100%;
             border: 1px solid var(--border-color);
@@ -101,34 +103,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #0f766e, #14b8a6);
+            background: linear-gradient(90deg, #0d9488, #14b8a6);
         }
 
         .register-card h2 {
             margin-bottom: 24px;
-            color: #0f172a;
+            color: var(--text-main);
             text-align: center;
             font-size: 24px;
-            font-weight: 700;
+            font-weight: 800;
             letter-spacing: -0.5px;
         }
 
         .form-row { display: flex; gap: 12px; }
-        .form-group { margin-bottom: 16px; flex: 1; }
+        .form-group { margin-bottom: 18px; flex: 1; }
 
         .form-group label {
             display: block;
             margin-bottom: 6px;
-            color: #475569;
-            font-size: 13px;
-            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 12.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .form-group input {
             width: 100%;
-            padding: 11px 14px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
+            padding: 12px 16px;
+            border: 1.5px solid var(--border-color);
+            border-radius: var(--radius-sm);
             font-family: inherit;
             font-size: 14px;
             background: #f8fafc;
@@ -139,22 +143,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             outline: none;
             border-color: var(--primary);
             background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+            box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.12);
         }
 
         .btn {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background: var(--primary);
             border: none;
             color: white;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             font-family: inherit;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 14px;
             cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
             margin-top: 4px;
         }
         .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
@@ -164,21 +168,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border: 1px solid #fecaca;
             color: #991b1b;
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             margin-bottom: 20px;
             text-align: center;
         }
 
         .success {
-            background: #d1fae5;
-            border: 1px solid #a7f3d0;
-            color: #065f46;
+            background: #ccfbf1;
+            border: 1px solid #99f6e4;
+            color: #115e59;
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             margin-bottom: 20px;
             text-align: center;
         }
@@ -194,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .login-link a {
             color: var(--primary);
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
         }
         .login-link a:hover { text-decoration: underline; }
     </style>
