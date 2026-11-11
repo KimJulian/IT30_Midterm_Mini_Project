@@ -334,7 +334,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     <div class="form-group">
                         <label>Email Address</label>
-                        <input type="email" name="email" placeholder="name@company.com" required>
+                        <input type="email" name="email" placeholder="name@gmail.com" required>
                     </div>
 
                     <div class="form-row">
