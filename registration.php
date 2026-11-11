@@ -11,8 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
-    $role = $_POST['role'] ?? 'Employee';
-    $department = 'Unassigned'; // Default department upon registration
+    $role = 'Employee'; // Default role for all newly registered users
+    $department = 'Unassigned'; // Default department for admin assignment
 
     if (!empty($first_name) && !empty($last_name) && !empty($email) && !empty($password) && !empty($confirm_password)) {
         if ($password !== $confirm_password) {
@@ -24,20 +24,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($stmt_check->rowCount() > 0) {
                 $error = "Email address is already registered.";
             } else {
-                $pdo->beginTransaction();
+                try {
+                    $pdo->beginTransaction();
 
-                // 1. Insert into employee table with default 'Unassigned' department and 15 leave credits
-                $stmt_emp = $pdo->prepare("INSERT INTO employee (FirstName, LastName, Department, LeaveCredits) VALUES (?, ?, ?, 15.0)");
-                $stmt_emp->execute([$first_name, $last_name, $department]);
-                $employee_no = $pdo->lastInsertId();
+                    // 1. Insert into employee table first to generate the auto-incremented EmployeeNo
+                    $stmt_emp = $pdo->prepare("INSERT INTO employee (FirstName, LastName, Department, LeaveCredits) VALUES (?, ?, ?, 15.0)");
+                    $stmt_emp->execute([$first_name, $last_name, $department]);
+                    $employee_no = $pdo->lastInsertId();
 
-                // 2. Insert into users table
-                $password_hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt_user = $pdo->prepare("INSERT INTO users (EmployeeNo, Email, PasswordHash, Role) VALUES (?, ?, ?, ?)");
-                $stmt_user->execute([$employee_no, $email, $password_hash, $role]);
+                    // 2. Insert into users table using the correct $employee_no foreign key
+                    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                    $stmt_user = $pdo->prepare("INSERT INTO users (EmployeeNo, Email, PasswordHash, Role) VALUES (?, ?, ?, ?)");
+                    $stmt_user->execute([$employee_no, $email, $password_hash, $role]);
 
-                $pdo->commit();
-                $success = "Account successfully created! You can now sign in.";
+                    $pdo->commit();
+                    $success = "Account successfully created! You can now sign in.";
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    $error = "Registration failed: " . $e->getMessage();
+                }
             }
         }
     } else {
@@ -196,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-weight: 700;
         }
 
-        .form-group input, .form-group select {
+        .form-group input {
             width: 100%;
             padding: 11px 14px;
             border: 1.5px solid var(--border-color);
@@ -208,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             transition: all 0.2s;
         }
 
-        .form-group input:focus, .form-group select:focus {
+        .form-group input:focus {
             outline: none;
             border-color: var(--primary);
             background: #ffffff;
@@ -330,16 +335,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="form-group">
                         <label>Email Address</label>
                         <input type="email" name="email" placeholder="name@company.com" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Account Role</label>
-                        <select name="role">
-                            <option value="Employee">Employee</option>
-                            <option value="Supervisor">Supervisor</option>
-                            <option value="HR_Admin">HR Admin</option>
-                            <option value="Admin">Admin</option>
-                        </select>
                     </div>
 
                     <div class="form-row">
