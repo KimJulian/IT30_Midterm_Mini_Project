@@ -17,8 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
     $leave_type_id = $_POST['leave_type_id'];
     $start_date = $_POST['start_date'];
     $end_date = $_POST['end_date'];
+    $reason = trim($_POST['reason']);
 
-    if (!empty($leave_type_id) && !empty($start_date) && !empty($end_date)) {
+    if (!empty($leave_type_id) && !empty($start_date) && !empty($end_date) && !empty($reason)) {
         $start = new DateTime($start_date);
         $end = new DateTime($end_date);
         
@@ -32,8 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
             $available_credits = $emp_data['LeaveCredits'] ?? 0;
 
             if ($available_credits >= $days) {
-                $stmt_insert = $pdo->prepare("INSERT INTO leave_request (EmployeeNo, LeaveTypeID, StartDate, EndDate, Days, Status) VALUES (?, ?, ?, ?, ?, 'Pending')");
-                if ($stmt_insert->execute([$employee_no, $leave_type_id, $start_date, $end_date, $days])) {
+                $stmt_insert = $pdo->prepare("INSERT INTO leave_request (EmployeeNo, LeaveTypeID, StartDate, EndDate, Days, Reason, Status) VALUES (?, ?, ?, ?, ?, ?, 'Pending')");
+                if ($stmt_insert->execute([$employee_no, $leave_type_id, $start_date, $end_date, $days, $reason])) {
                     $action_message = "Leave request submitted successfully!";
                 }
             } else {
@@ -43,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_leave'])) {
             $error_message = "End date cannot be earlier than start date.";
         }
     } else {
-        $error_message = "Please fill in all required fields.";
+        $error_message = "Please fill in all required fields, including the reason for your leave.";
     }
 }
 
@@ -55,7 +56,7 @@ $stmt_types = $pdo->query("SELECT * FROM leave_type");
 $leave_types = $stmt_types->fetchAll();
 
 $stmt_reqs = $pdo->prepare("
-    SELECT r.RequestNo, t.TypeName AS LeaveTypeName, r.StartDate, r.EndDate, r.Days, r.Status 
+    SELECT r.RequestNo, t.TypeName AS LeaveTypeName, r.StartDate, r.EndDate, r.Days, r.Reason, r.Status 
     FROM leave_request r
     JOIN leave_type t ON r.LeaveTypeID = t.LeaveTypeID
     WHERE r.EmployeeNo = ?
@@ -267,7 +268,7 @@ $my_requests = $stmt_reqs->fetchAll();
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .form-group input, .form-group select {
+        .form-group input, .form-group select, .form-group textarea {
             width: 100%;
             padding: 12px 16px;
             border: 1.5px solid var(--border-color);
@@ -278,7 +279,7 @@ $my_requests = $stmt_reqs->fetchAll();
             color: var(--text-main);
             transition: all 0.2s;
         }
-        .form-group input:focus, .form-group select:focus {
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
             outline: none;
             border-color: var(--primary);
             background: #ffffff;
@@ -408,6 +409,10 @@ $my_requests = $stmt_reqs->fetchAll();
                             <input type="date" name="end_date" required>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>Reason for Leave</label>
+                        <textarea name="reason" rows="3" placeholder="Please specify your reason..." required></textarea>
+                    </div>
                     <button type="submit" name="submit_leave" class="btn-submit">Submit Leave Application</button>
                 </form>
             </div>
@@ -423,6 +428,7 @@ $my_requests = $stmt_reqs->fetchAll();
                     <th>Start Date</th>
                     <th>End Date</th>
                     <th>Days</th>
+                    <th>Reason</th>
                     <th>Status</th>
                 </tr>
                 <?php if (count($my_requests) > 0): ?>
@@ -433,6 +439,7 @@ $my_requests = $stmt_reqs->fetchAll();
                         <td><?php echo htmlspecialchars($req['StartDate']); ?></td>
                         <td><?php echo htmlspecialchars($req['EndDate']); ?></td>
                         <td><strong><?php echo htmlspecialchars($req['Days']); ?></strong></td>
+                        <td><?php echo htmlspecialchars($req['Reason']); ?></td>
                         <td>
                             <?php 
                                 $status = $req['Status'];
@@ -446,7 +453,7 @@ $my_requests = $stmt_reqs->fetchAll();
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 32px;">You haven't submitted any leave requests yet.</td>
+                        <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 32px;">You haven't submitted any leave requests yet.</td>
                     </tr>
                 <?php endif; ?>
             </table>
